@@ -116,7 +116,10 @@ class swas_wp_footnotes {
             $this->current_options = $footnotes_options;
         }
 
+        // Hook into both regular content and Elementor widgets
         add_filter('the_content', array($this, 'process_content'), $this->current_options['priority']);
+        add_filter('widget_text', array($this, 'process_content'), $this->current_options['priority']);
+        add_action('elementor/widget/render_content', array($this, 'process_content'), $this->current_options['priority']);
         add_action('admin_menu', array($this, 'add_options_page'));
         add_action('wp_head', array($this, 'insert_styles'));
         
@@ -132,8 +135,9 @@ class swas_wp_footnotes {
     }
 
     function process_content($content) {
-        // Only process the content, don't append footnotes
-        return $this->process($content);
+        // Process the content and replace footnote markers
+        $processed_content = $this->process($content);
+        return $processed_content;
     }
 
     function shortcode_handler() {
@@ -152,6 +156,7 @@ class swas_wp_footnotes {
 
         $start_number = (1 === preg_match('|<!\-\-startnum=(\d+)\-\->|', $content, $start_number_array)) ? $start_number_array[1] : 1;
 
+        // Extract all footnotes
         if (!preg_match_all('/(' . preg_quote($this->current_options['footnotes_open'], '/') . ')(.*)(' .
             preg_quote($this->current_options['footnotes_close'], '/') . ')/Us', $content, $identifiers, PREG_SET_ORDER)) {
             return $content;
@@ -205,6 +210,7 @@ class swas_wp_footnotes {
 
         $use_full_link = is_feed() && !is_preview();
 
+        // Replace footnote markers with links
         foreach ($identifiers as $key => $value) {
             $id_id = sprintf('identifier_%d_%d', $key, $post->ID);
             $id_num = ($style === 'decimal') ? $value['use_footnote'] + $start_number :
@@ -228,7 +234,7 @@ class swas_wp_footnotes {
                 $id_replace = '<sup>' . $id_replace . '</sup>';
             }
             
-            $content = substr_replace($content, $id_replace, strpos($content, $value[0]), strlen($value[0]));
+            $content = str_replace($value[0], $id_replace, $content);
         }
 
         if ($display) {
@@ -280,6 +286,7 @@ class swas_wp_footnotes {
         return $content;
     }
 
+    // Rest of the class methods remain unchanged...
     function add_settings_link($links, $file) {
         static $this_plugin;
         if (!$this_plugin) {
